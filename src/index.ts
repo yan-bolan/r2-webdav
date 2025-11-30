@@ -187,28 +187,64 @@ function calcContentRange(object: R2ObjectBody) {
 	return { rangeOffset, rangeEnd };
 }
 
+// async function handle_put(request: Request, bucket: R2Bucket): Promise<Response> {
+// 	if (request.url.endsWith('/')) {
+// 		return new Response('Method Not Allowed', { status: 405 });
+// 	}
+
+// 	let resource_path = make_resource_path(request);
+
+// 	// Check if the parent directory exists
+// 	let dirpath = resource_path.split('/').slice(0, -1).join('/');
+// 	if (dirpath !== '') {
+// 		let dir = await bucket.head(dirpath);
+// 		if (!(dir && dir.customMetadata?.resourcetype === '<collection />')) {
+// 			return new Response('Conflict', { status: 409 });
+// 		}
+// 	}
+
+// 	let body = await request.arrayBuffer();
+// 	await bucket.put(resource_path, body, {
+// 		onlyIf: request.headers,
+// 		httpMetadata: request.headers,
+// 	});
+// 	return new Response('', { status: 201 });
+// }
 async function handle_put(request: Request, bucket: R2Bucket): Promise<Response> {
-	if (request.url.endsWith('/')) {
-		return new Response('Method Not Allowed', { status: 405 });
-	}
+    // 如果 URL 以 / 结尾，说明是目录，不允许直接 PUT
+    if (request.url.endsWith('/')) {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
 
-	let resource_path = make_resource_path(request);
+    // 生成对象的存储路径（key）
+    let resource_path = make_resource_path(request);
 
-	// Check if the parent directory exists
-	let dirpath = resource_path.split('/').slice(0, -1).join('/');
-	if (dirpath !== '') {
-		let dir = await bucket.head(dirpath);
-		if (!(dir && dir.customMetadata?.resourcetype === '<collection />')) {
-			return new Response('Conflict', { status: 409 });
-		}
-	}
+    // 🔄 改动 1：递归检查并逐级创建父目录
+    let parts = resource_path.split('/');
+    for (let i = 1; i < parts.length; i++) {
+        let prefix = parts.slice(0, i).join('/');
 
-	let body = await request.arrayBuffer();
-	await bucket.put(resource_path, body, {
-		onlyIf: request.headers,
-		httpMetadata: request.headers,
-	});
-	return new Response('', { status: 201 });
+        // 跳过最后一层（文件本身）
+        if (i === parts.length - 1) break;
+
+        let dir = await bucket.head(prefix);
+        if (!(dir && dir.customMetadata?.resourcetype === '<collection />')) {
+            await bucket.put(prefix, new ArrayBuffer(0), {
+                customMetadata: { resourcetype: '<collection />' }
+            });
+        }
+    }
+
+    // 读取请求体作为文件内容
+    let body = await request.arrayBuffer();
+
+    // 上传到 R2
+    await bucket.put(resource_path, body, {
+        onlyIf: request.headers,
+        httpMetadata: request.headers,
+    });
+
+    return new Response('', { status: 201 });
 }
 
 async function handle_delete(request: Request, bucket: R2Bucket): Promise<Response> {
