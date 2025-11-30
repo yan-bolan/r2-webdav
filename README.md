@@ -22,6 +22,9 @@ wrangler deploy
 wrangler secret put USERNAME
 wrangler secret put PASSWORD
 ```
+- wrangler secret put USERNAME
+- 使用 wrangler CLI 工具，把一个名为 USERNAME 的环境变量保存到 Cloudflare Workers 的配置里。
+- 执行后会提示你输入值，比如 cicd@cloudreve.org。输入后，这个值会被安全存储，Worker 代码里可以通过 env.USERNAME 访问。
 
 ## Development
 
