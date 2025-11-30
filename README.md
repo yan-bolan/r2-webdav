@@ -41,3 +41,6 @@ $ npm run deploy
 ## Test
 
 Use [litmus](https://github.com/notroj/litmus) to test.
+
+
+# 修改了Put方法，使其支持上传自动递归创建父目录
